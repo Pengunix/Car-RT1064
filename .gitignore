@@ -1,0 +1,4 @@
+build/
+flexspi_nor_debug/
+flexspi_nor_release/
+.vscode
