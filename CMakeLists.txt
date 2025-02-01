@@ -44,19 +44,20 @@ include(${ProjDirPath}/flags.cmake)
 include(${ProjDirPath}/config.cmake)
 
 add_executable(${MCUX_SDK_PROJECT_NAME}
-    "${ProjDirPath}/src/led_blinky.c"
+    "${ProjDirPath}/src/main.c"
     "${ProjDirPath}/src/pin_mux.c"
     "${ProjDirPath}/src/board.c"
     "${ProjDirPath}/src/clock_config.c"
     "${ProjDirPath}/src/dcd.c"
 )
 
+
 target_include_directories(${MCUX_SDK_PROJECT_NAME} PRIVATE
     ${ProjDirPath}/include
     $ENV{ARMGCC_DIR}/arm-none-eabi/include
 )
 
-
+include(${ProjDirPath}/lib/files.cmake)
 include(${SdkRootDirPath}/devices/MIMXRT1064/all_lib_device.cmake)
 
 if(NOT DEFINED TARGET_LINK_SYSTEM_LIBRARIES)
