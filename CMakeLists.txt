@@ -33,7 +33,7 @@ set(LIBRARY_OUTPUT_PATH ${ProjDirPath}/${CMAKE_BUILD_TYPE})
 
 set(MCUX_BUILD_TYPES debug release sdram_debug sdram_release flexspi_nor_debug flexspi_nor_release)
 
-set(MCUX_SDK_PROJECT_NAME iled_blinky.elf)
+set(MCUX_SDK_PROJECT_NAME car.elf)
 
 if(NOT DEFINED SdkRootDirPath)
     set(SdkRootDirPath ${ProjDirPath}/../sdk)
@@ -45,10 +45,9 @@ include(${ProjDirPath}/config.cmake)
 
 add_executable(${MCUX_SDK_PROJECT_NAME}
     "${ProjDirPath}/src/main.c"
-    "${ProjDirPath}/src/pin_mux.c"
     "${ProjDirPath}/src/board.c"
     "${ProjDirPath}/src/clock_config.c"
-    "${ProjDirPath}/src/dcd.c"
+    "${ProjDirPath}/src/isr.c"
 )
 
 
