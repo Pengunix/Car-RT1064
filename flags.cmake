@@ -1,14 +1,14 @@
-IF(NOT DEFINED FPU)  
-    SET(FPU "-mfloat-abi=hard -mfpu=fpv5-d16")  
-ENDIF()  
+IF(NOT DEFINED FPU)
+    SET(FPU "-mfloat-abi=hard -mfpu=fpv5-d16")
+ENDIF()
 
-IF(NOT DEFINED SPECS)  
-    SET(SPECS "--specs=nano.specs --specs=nosys.specs")  
-ENDIF()  
+IF(NOT DEFINED SPECS)
+    SET(SPECS "--specs=nano.specs --specs=nosys.specs")
+ENDIF()
 
-IF(NOT DEFINED DEBUG_CONSOLE_CONFIG)  
-    SET(DEBUG_CONSOLE_CONFIG "-DSDK_DEBUGCONSOLE=1")  
-ENDIF()  
+IF(NOT DEFINED DEBUG_CONSOLE_CONFIG)
+    SET(DEBUG_CONSOLE_CONFIG "-DSDK_DEBUGCONSOLE=1")
+ENDIF()
 
 SET(CMAKE_ASM_FLAGS_DEBUG " \
     ${CMAKE_ASM_FLAGS_DEBUG} \
@@ -70,6 +70,7 @@ SET(CMAKE_C_FLAGS_DEBUG " \
     -DCPU_MIMXRT1064DVL6A \
     -DMCUXPRESSO_SDK \
     -DSERIAL_PORT_TYPE_UART=1 \
+    -DSDK_OS_FREE_RTOS \
     -g \
     -O0 \
     -mcpu=cortex-m7 \
@@ -92,6 +93,7 @@ SET(CMAKE_C_FLAGS_RELEASE " \
     -DCPU_MIMXRT1064DVL6A \
     -DMCUXPRESSO_SDK \
     -DSERIAL_PORT_TYPE_UART=1 \
+    -DSDK_OS_FREE_RTOS \
     -Os \
     -mcpu=cortex-m7 \
     -Wall \
@@ -115,6 +117,7 @@ SET(CMAKE_C_FLAGS_SDRAM_DEBUG " \
     -DCPU_MIMXRT1064DVL6A \
     -DMCUXPRESSO_SDK \
     -DSERIAL_PORT_TYPE_UART=1 \
+    -DSDK_OS_FREE_RTOS \
     -g \
     -O0 \
     -mcpu=cortex-m7 \
@@ -139,6 +142,7 @@ SET(CMAKE_C_FLAGS_SDRAM_RELEASE " \
     -DCPU_MIMXRT1064DVL6A \
     -DMCUXPRESSO_SDK \
     -DSERIAL_PORT_TYPE_UART=1 \
+    -DSDK_OS_FREE_RTOS \
     -Os \
     -mcpu=cortex-m7 \
     -Wall \
@@ -162,6 +166,7 @@ SET(CMAKE_C_FLAGS_FLEXSPI_NOR_DEBUG " \
     -DCPU_MIMXRT1064DVL6A \
     -DMCUXPRESSO_SDK \
     -DSERIAL_PORT_TYPE_UART=1 \
+    -DSDK_OS_FREE_RTOS \
     -g \
     -O0 \
     -mcpu=cortex-m7 \
@@ -186,6 +191,7 @@ SET(CMAKE_C_FLAGS_FLEXSPI_NOR_RELEASE " \
     -DCPU_MIMXRT1064DVL6A \
     -DMCUXPRESSO_SDK \
     -DSERIAL_PORT_TYPE_UART=1 \
+    -DSDK_OS_FREE_RTOS \
     -Os \
     -mcpu=cortex-m7 \
     -Wall \

@@ -56,6 +56,7 @@ target_include_directories(${MCUX_SDK_PROJECT_NAME} PRIVATE
     $ENV{ARMGCC_DIR}/arm-none-eabi/include
 )
 
+set_source_files_properties("${ProjDirPath}/include/FreeRTOSConfig.h" PROPERTIES COMPONENT_CONFIG_FILE "middleware_freertos-kernel_template")
 include(${ProjDirPath}/lib/files.cmake)
 include(${SdkRootDirPath}/devices/MIMXRT1064/all_lib_device.cmake)
 

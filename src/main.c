@@ -1,6 +1,21 @@
+#include "FreeRTOS.h"
+#include "FreeRTOSConfig.h"
+#include "queue.h"
+#include "task.h"
+#include "timers.h"
 #include "zf_common_headfile.h"
 
+static void hello_task(void *pv) {
+  for (;;) {
+    gpio_set_level(B9, 1);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    gpio_set_level(B9, 0);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+}
+
 int main(void) {
+  // DisableGlobalIRQ();
   clock_init(SYSTEM_CLOCK_600M);
   debug_init();
   // 控制串口
@@ -17,4 +32,13 @@ int main(void) {
   adc_init(ADC2_CH1_B28, ADC_8BIT);
   // 蜂鸣器
   gpio_init(B20, GPO, 0, GPO_PUSH_PULL);
+  // 核心板led
+  gpio_init(B9, GPO, 1, GPO_PUSH_PULL);
+
+  if (pdPASS != xTaskCreate(hello_task, "Hello", configMINIMAL_STACK_SIZE + 100,
+                            NULL, configMAX_PRIORITIES - 1, NULL)) {
+    while (1) {
+    }
+  }
+  vTaskStartScheduler();
 }
