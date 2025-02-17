@@ -48,6 +48,7 @@ add_executable(${MCUX_SDK_PROJECT_NAME}
     "${ProjDirPath}/src/board.c"
     "${ProjDirPath}/src/clock_config.c"
     "${ProjDirPath}/src/isr.c"
+    "${ProjDirPath}/src/uart_dma.c"
 )
 
 
