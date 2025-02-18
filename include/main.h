@@ -5,9 +5,6 @@
 #include "task.h"
 #include "timers.h"
 #include "zf_common_headfile.h"
-#include "fsl_common.h"
-
-#define __STARTUP_INITIALIZE_NONCACHEDATA
 
 enum Buzzer {
   BUZZER_OK = 0,   // 确认

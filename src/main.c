@@ -6,9 +6,7 @@ QueueHandle_t uartQueue;
 
 static void hello_task(void *pv) {
   for (;;) {
-    gpio_set_level(B9, 1);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    gpio_set_level(B9, 0);
+    // gpio_toggle_level(B9);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     enum Buzzer ac1 = BUZZER_START;
     xQueueGenericSend(buzzerQueue, &ac1, portMAX_DELAY, queueSEND_TO_BACK);
@@ -16,10 +14,13 @@ static void hello_task(void *pv) {
 }
 
 static void tUartRecv(void *pv) {
-  UartRecvFrame recv;
+  uint8_t recv[12];
   for (;;) {
     if (pdPASS == xQueueReceive(uartQueue, &recv, portMAX_DELAY)) {
-      uart_write_buffer(UART_1, recv.data, 12);
+      // uart_write_buffer(UART_6, recv, 12);
+      for (int i=0;i<12;i++) {
+        uart_write_byte(UART_6, recv[i]);
+      }
     }
   }
 }
@@ -109,8 +110,8 @@ int main(void) {
   // 核心板led
   gpio_init(B9, GPO, 1, GPO_PUSH_PULL);
 
-  buzzerQueue = xQueueCreate(5, sizeof(enum Buzzer));
-  uartQueue = xQueueCreate(5, sizeof(UartRecvFrame));
+  buzzerQueue = xQueueCreate(4, sizeof(enum Buzzer));
+  uartQueue = xQueueCreate(8, sizeof(UartRecvFrame));
 
   BaseType_t ret;
   ret = xTaskCreate(hello_task, "Hello", configMINIMAL_STACK_SIZE + 100, NULL,

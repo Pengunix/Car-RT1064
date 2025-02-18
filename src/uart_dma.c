@@ -1,7 +1,8 @@
 #include "uart_dma.h"
 
 // 收发缓冲区
-AT_NONCACHEABLE_SECTION_INIT(uint8_t g_rxBuffer[ECHO_BUFFER_LENGTH]) = {0};
+__attribute__((
+    section("NonCacheable.init"))) uint8_t g_rxBuffer[ECHO_BUFFER_LENGTH] = {0};
 
 /*句柄定义*/
 lpuart_edma_handle_t g_lpuartEdmaHandle; // 串口DMA传输句柄
@@ -26,20 +27,11 @@ void LPUART_DMA_Init(_Bool LPUART_DMA_Mode) {
     LpuartConfig.baudRate_Bps = 115200;
     LpuartConfig.enableTx = true;
     LpuartConfig.enableRx = true;
-    LpuartConfig.rxIdleConfig = kLPUART_IdleCharacter1;
+    LpuartConfig.rxIdleConfig = kLPUART_IdleCharacter2;
     LpuartConfig.rxIdleType = kLPUART_IdleTypeStopBit;
     LPUART_Init(DEMO_LPUART, &LpuartConfig, DEMO_LPUART_CLK_FREQ);
 
-    // 配置串口参数的时候，rxIdleConfig和rxIdleType
-    // 我设置成了从停止位开始检测，连续检测到一个字符的空闲时触发空闲中断，
-    // 不过这两个完全按照默认的设置也能实现功能，目前还不清楚为什么。
-
-    /* 清除可能残留的标志位，并使能空闲中断 */
-    LPUART_ClearStatusFlags(DEMO_LPUART, kLPUART_IdleLineFlag);
-    LPUART_EnableInterrupts(DEMO_LPUART, kLPUART_IdleLineInterruptEnable);
-
     edma_config_t config;
-
     /*初始化DMAMUX */
     DMAMUX_Init(LPUART_DMAMUX_BASEADDR);
     /* 为LPUART设置DMA传输通道 */
@@ -66,9 +58,11 @@ void LPUART_DMA_Init(_Bool LPUART_DMA_Mode) {
                                     &g_lpuartRxEdmaHandle);
 
     /* 打开串口中断 */
-    // EnableIRQ(LPUART1_IRQn);
-    uart_rx_interrupt(UART_6, ZF_ENABLE); // 开启 UART_INDEX 的接收中断
-    NVIC_SetPriority(LPUART1_IRQn, 6);
+    /* 清除可能残留的标志位，并使能空闲中断 */
+    LPUART_ClearStatusFlags(DEMO_LPUART, kLPUART_IdleLineFlag);
+    LPUART_EnableInterrupts(DEMO_LPUART, kLPUART_IdleLineInterruptEnable);
+    EnableIRQ(LPUART6_IRQn);
+    NVIC_SetPriority(LPUART6_IRQn, 6);
 
     /* 启动传输 */
     DMAU6.Rx_Buf.data = g_rxBuffer;
@@ -132,7 +126,7 @@ void LPUART_GPIO_Init(GPIO_Type *base_tx, uint32_t pin_tx, GPIO_Type *base_rx,
   );
 }
 
-// extern QueueHandle_t uartQueue;
+extern QueueHandle_t uartQueue;
 void UartCallbackDMA6(void) {
   /* 判断中断源 */
   if (LPUART_GetStatusFlags(DEMO_LPUART) & kLPUART_IdleLineFlag) {
@@ -145,19 +139,16 @@ void UartCallbackDMA6(void) {
     LPUART_TransferAbortReceiveEDMA(DEMO_LPUART, &g_lpuartEdmaHandle);
 
     /*数据处理-------------------------------------------------------------------------------------------------------*/
-    // Dbp("%d %s\r\n", U_1.Rx_Buf.dataSize, U_1.Rx_Buf.rxData);
-    // if ((UART_Check_str(U_1.Rx_Buf.rxData, U_1.RxData_Index) == 1) &&
-    // (U_1.RxData_Index == 3)) {
-    // uint8_t num = 1;
-    // if (xQueueSendToBackFromISR(uartQueue, &num, NULL) != pdPASS) { // failed
-    // }
-    // } else {
-    //   memset(U_1.Rx_Buf.rxData, 0, U_1.RxData_Index);
-    //   // Dbp("error\r\n");
-    // }
-    uart_write_buffer(UART_6, DMAU6.Rx_Buf.data, DMAU6.Rx_Buf.dataSize-1);
+    gpio_toggle_level(B9);
+    BaseType_t yeildFromISR = pdFALSE;
+    if (DMAU6.RxData_Index == 12) {
+      xQueueSendToBackFromISR(uartQueue, DMAU6.Rx_Buf.rxData, &yeildFromISR);
+    } else {
+      memset(g_rxBuffer, 0, ECHO_BUFFER_LENGTH);
+    }
 
     /* 重新开始DMA接收传输 */
     LPUART_ReceiveEDMA(DEMO_LPUART, &g_lpuartEdmaHandle, &DMAU6.Rx_Buf);
+    portYIELD_FROM_ISR(yeildFromISR);
   }
 }

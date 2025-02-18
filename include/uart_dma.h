@@ -5,7 +5,6 @@
 #include "fsl_lpuart.h"
 #include "fsl_lpuart_edma.h"
 #include "main.h"
-#include "zf_driver_uart.h"
 
 typedef struct {
   lpuart_transfer_t Tx_Buf;
@@ -28,7 +27,7 @@ extern edma_handle_t g_lpuartRxEdmaHandle;      // 串口DMA接收句柄
 #define LPUART_RX_DMA_REQUEST kDmaRequestMuxLPUART6Rx // 定义串口DMA接收请求源
 #define LPUART_DMAMUX_BASEADDR DMAMUX // 定义所使用的DMA多路复用模块(DMAMUX)
 #define LPUART_DMA_BASEADDR DMA0 // 定义使用的DMA
-#define ECHO_BUFFER_LENGTH 8     // UART接收和发送数据缓冲区长度
+#define ECHO_BUFFER_LENGTH 255     // UART接收和发送数据缓冲区长度
 
 #define LPUART6_RX_GPIO GPIO1
 #define LPUART6_RX_GPIO_PIN (3U)
