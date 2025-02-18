@@ -1,7 +1,6 @@
 set(zfLibDir ${ProjDirPath}/lib/)
 target_include_directories(${MCUX_SDK_PROJECT_NAME} PUBLIC
   ${zfLibDir}/zf_common
-  ${zfLibDir}/zf_components
   ${zfLibDir}/zf_device
   ${zfLibDir}/zf_driver
 )
