@@ -139,7 +139,6 @@ void UartCallbackDMA6(void) {
     LPUART_TransferAbortReceiveEDMA(DEMO_LPUART, &g_lpuartEdmaHandle);
 
     /*数据处理-------------------------------------------------------------------------------------------------------*/
-    gpio_toggle_level(B9);
     BaseType_t yeildFromISR = pdFALSE;
     if (DMAU6.RxData_Index == 12) {
       xQueueSendToBackFromISR(uartQueue, DMAU6.Rx_Buf.rxData, &yeildFromISR);

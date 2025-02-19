@@ -63,6 +63,8 @@
 #define configENABLE_BACKWARD_COMPATIBILITY 0
 #define configNUM_THREAD_LOCAL_STORAGE_POINTERS 5
 
+#define configUSE_TASK_FPU_SUPPORT    1
+
 /* Used memory allocation (heap_x.c) */
 #define configFRTOS_MEMORY_SCHEME 4
 /* Tasks.c additions (e.g. Thread Aware Debug capability) */
