@@ -24,7 +24,7 @@ void LPUART_DMA_Init(_Bool LPUART_DMA_Mode) {
     LPUART_GetDefaultConfig(&LpuartConfig);
 
     /* 在默认配置基础上继续配置参数 */
-    LpuartConfig.baudRate_Bps = 115200;
+    LpuartConfig.baudRate_Bps = 921600;
     LpuartConfig.enableTx = true;
     LpuartConfig.enableRx = true;
     LpuartConfig.rxIdleConfig = kLPUART_IdleCharacter2;

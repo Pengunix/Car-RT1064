@@ -32,13 +32,15 @@ enum Buzzer {
 #define UART_FRAME_TAIL 0x43
 typedef union {
   uint8 data[12];
-  uint8 head;
-  int8 buzzer;
-  uint16 servo;
-  float speed;
-  uint8 _reserved[2];
-  uint8 xorCheck;
-  uint8 tail;
+  struct {
+    uint8 head;
+    int8 buzzer;
+    uint16 servo;
+    float speed;
+    uint8 _reserved[2];
+    uint8 xorCheck;
+    uint8 tail;
+  };
 } UartRecvFrame;
 
 #define PWMSERVOMID 1500
