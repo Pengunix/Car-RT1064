@@ -9,10 +9,11 @@
 //                           // 这个函数最后会调用我们设置的回调函数
 //   __DSB();                // 数据同步隔离
 // }
-
+extern void PIDCalculate();
 void PIT_IRQHandler(void) {
   if (pit_flag_get(PIT_CH0)) {
     pit_flag_clear(PIT_CH0);
+    PIDCalculate();
   }
 
   if (pit_flag_get(PIT_CH1)) {
@@ -64,9 +65,9 @@ void LPUART3_IRQHandler(void) {
 void LPUART4_IRQHandler(void) {
   if (kLPUART_RxDataRegFullFlag & LPUART_GetStatusFlags(LPUART4)) {
     // 接收中断
-    flexio_camera_uart_handler();
+    // flexio_camera_uart_handler();
 
-    gnss_uart_callback();
+    // gnss_uart_callback();
   }
 
   LPUART_ClearStatusFlags(LPUART4, kLPUART_RxOverrunFlag); // 不允许删除
@@ -75,7 +76,7 @@ void LPUART4_IRQHandler(void) {
 void LPUART5_IRQHandler(void) {
   if (kLPUART_RxDataRegFullFlag & LPUART_GetStatusFlags(LPUART5)) {
     // 接收中断
-    camera_uart_handler();
+    // camera_uart_handler();
   }
 
   LPUART_ClearStatusFlags(LPUART5, kLPUART_RxOverrunFlag); // 不允许删除
@@ -88,7 +89,7 @@ void LPUART6_IRQHandler(void) {
 void LPUART8_IRQHandler(void) {
   if (kLPUART_RxDataRegFullFlag & LPUART_GetStatusFlags(LPUART8)) {
     // 接收中断
-    wireless_module_uart_handler();
+    // wireless_module_uart_handler();
   }
 
   LPUART_ClearStatusFlags(LPUART8, kLPUART_RxOverrunFlag); // 不允许删除
@@ -101,14 +102,14 @@ void GPIO1_Combined_0_15_IRQHandler(void) {
 }
 
 void GPIO1_Combined_16_31_IRQHandler(void) {
-  wireless_module_spi_handler();
+  // wireless_module_spi_handler();
   if (exti_flag_get(B16)) {
     exti_flag_clear(B16); // 清除中断标志位
   }
 }
 
 void GPIO2_Combined_0_15_IRQHandler(void) {
-  flexio_camera_vsync_handler();
+  // flexio_camera_vsync_handler();
 
   if (exti_flag_get(C0)) {
     exti_flag_clear(C0); // 清除中断标志位
