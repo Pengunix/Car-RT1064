@@ -1,128 +1,290 @@
 #include "main.h"
 #include "uart_dma.h"
 
-QueueHandle_t buzzerQueue;
-QueueHandle_t uartQueue;
+QueueHandle_t hBuzzerQueue;
+QueueHandle_t hUartQueue;
 
-static void hello_task(void *pv) {
+TimerHandle_t xUartResetTimer;
+
+TaskHandle_t hUartSend;
+
+volatile uint16_t xBatteryAdc;
+volatile uint32_t xTime;
+volatile float count_dis;
+volatile float exp_dis;
+volatile uint8_t dis_achieved;
+// 速度和编码器五次平均
+volatile float speedAverage[AVERAGECOUNT];
+volatile int32_t encoderPulses[AVERAGECOUNT];
+
+UartRecvFrame uartRecv;
+UartTranFrame uartTran;
+SPEED_PID pid;
+
+#ifdef DEBUG
+volatile char xPrintStr[64];
+#endif // DEBUG
+
+void PIDCalculate() {
+  float sp_sum = 0;
+  int32_t en_sum = 0;
+  xTime++;
+
+  for (int i = AVERAGECOUNT - 1; i > 0; --i) {
+    speedAverage[i] = speedAverage[i - 1];
+    encoderPulses[i] = encoderPulses[i - 1];
+  }
+
+  encoderPulses[0] = encoder_get_count(ENCODER_CH);
+  encoder_clear_count(ENCODER_CH);
+  speedAverage[0] =
+      (float)(encoderPulses[0]) / (float)(ENCODER_OM * PIT_PERIOD_S);
+
+  for (int i = 0; i < AVERAGECOUNT; ++i) {
+    sp_sum += speedAverage[i];
+    en_sum += encoderPulses[i];
+  }
+  pid.encoder_num = en_sum / AVERAGECOUNT;
+  pid.speed = sp_sum / AVERAGECOUNT;
+  pid.error = pid.exp_speed * PIT_PERIOD_S * ENCODER_OM - pid.encoder_num;
+
+  static float P_out = 0;
+  static float I_out = 0;
+
+  P_out += pid.kp * (pid.error - pid.last_error);
+  I_out += pid.ki * pid.error;
+
+  if (I_out > MOTOR_PWM_MAX)
+    I_out = MOTOR_PWM_MAX;
+  else if (I_out < MOTOR_PWM_MIN)
+    I_out = MOTOR_PWM_MIN;
+
+  pid.output = (long)(P_out + I_out);
+  if (pid.output > MOTOR_PWM_MAX)
+    pid.output = MOTOR_PWM_MAX;
+  else if (pid.output < MOTOR_PWM_MIN)
+    pid.output = MOTOR_PWM_MIN;
+
+  pid.last_error = pid.error;
+  // 距离积分
+  if (exp_dis != 0.0) {
+    count_dis += pid.speed * PIT_PERIOD_S;
+    if (count_dis > exp_dis) {
+      dis_achieved = 1;
+    }
+  }
+
+  pwm_set_duty(MOTOR_PWM, (PWM_DUTY_MAX + pid.output) / 2);
+}
+
+static void tMisc(void *pv) {
   for (;;) {
-    // gpio_toggle_level(B9);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    enum Buzzer ac1 = BUZZER_START;
-    xQueueGenericSend(buzzerQueue, &ac1, portMAX_DELAY, queueSEND_TO_BACK);
+    gpio_toggle_level(LED_PIN);
+    uint8_t keys = 0;
+    keys |= gpio_get_level(BUTTON1) << 1;
+    keys |= gpio_get_level(BUTTON2) << 2;
+    keys |= gpio_get_level(BUTTON3) << 3;
+    keys |= gpio_get_level(BUTTON4) << 4;
+    uartTran.keys = keys;
+
+    xBatteryAdc = adc_convert(BAT_ADC);
+    if (xBatteryAdc <= BATTERYTHRESH) {
+      enum Buzzer action = BUZZER_WARNNING;
+      xQueueSendToBack(hBuzzerQueue, &action, 100);
+    }
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+#ifdef DEBUG
+    snprintf(xPrintStr, 16, "keys: %d\r\n", keys);
+    uart_write_buffer(DEBUG_UART, xPrintStr, 20);
+#endif // DEBUG
   }
 }
 
+static uint8_t xorCheck(uint8_t *data, uint16_t size, uint8_t xorByte) {
+  uint8_t result = 0;
+  for (uint8_t i = 0; i < size; ++i) {
+    result ^= *(data + i);
+  }
+  result ^= xorByte;
+  return result;
+}
+
 static void tUartRecv(void *pv) {
-  uint8_t recv[12];
   for (;;) {
-    if (pdPASS == xQueueReceive(uartQueue, &recv, portMAX_DELAY)) {
+    if (pdPASS == xQueueReceive(hUartQueue, &uartRecv.data, portMAX_DELAY)) {
       // uart_write_buffer(UART_6, recv, 12);
-      for (int i=0;i<12;i++) {
-        uart_write_byte(UART_6, recv[i]);
+      if (uartRecv.data[0] == UART_FRAME_HEAD &&
+          uartRecv.data[11] == UART_FRAME_TAIL) {
+        if (uartRecv.data[10] == xorCheck(uartRecv.data, UART_RX_SIZE, uartRecv.data[10])) {
+          // 设置速度
+          pid.exp_speed = uartRecv.speed;
+          // 设置期望距离
+          exp_dis = uartRecv.dis / 100.0;
+          // 设置舵机
+          pwm_set_duty(SERVO_PWM, uartRecv.servo);
+          // 蜂鸣器
+          if (uartRecv.buzzer != BUZZER_SLIENT) {
+            xQueueSendToBack(hBuzzerQueue, &uartRecv.buzzer, 20);
+          }
+          xTimerReset(xUartResetTimer, 0);
+        } else {
+#ifdef DEBUG
+          uart_write_string(DEBUG_UART, "XOR sum ERROR!\r\n");
+#endif // DEBUG
+        }
+      } else {
+#ifdef DEBUG
+        uart_write_string(DEBUG_UART, "Uart Frame Recv Error!\r\n");
+#endif // DEBUG
       }
     }
   }
 }
 
+static void tUartSend(void *pv) {
+  uartTran.head = 0x34;
+  uartTran.tail = 0x43;
+  for (;;) {
+    for (int i = 0; i < UART_TX_SIZE; ++i) {
+      xorCheck(uartTran.data, UART_TX_SIZE, 0);
+      uart_write_byte(UART_6, uartTran.data[i]);
+    }
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
+
+static void uartResetTimerCallback() {
+  pid.exp_speed = 0;
+  pwm_set_duty(SERVO_PWM, PWMSERVOMID);
+}
+
 static void tBuzzer(void *pv) {
   enum Buzzer action;
   for (;;) {
-    if (pdPASS == xQueueReceive(buzzerQueue, &action, portMAX_DELAY)) {
+    if (pdPASS == xQueueReceive(hBuzzerQueue, &action, portMAX_DELAY)) {
       switch (action) {
       case BUZZER_OK:
         // 短一声
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
         break;
       case BUZZER_DING:
         // 长一声
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(500 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
         break;
       case BUZZER_WARNNING:
         // 短三声
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
         break;
       case BUZZER_FINISH:
         // 一长两短
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(500 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
+        break;
       case BUZZER_START:
         // 两短一长
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 1);
+        gpio_set_level(BUZZER_PIN, 1);
         vTaskDelay(500 / portTICK_PERIOD_MS);
-        gpio_set_level(B29, 0);
+        gpio_set_level(BUZZER_PIN, 0);
+        break;
+      default:
+        break;
       }
     }
   }
 }
 
 int main(void) {
-  // DisableGlobalIRQ();
   clock_init(SYSTEM_CLOCK_600M);
   // 调试串口
-  uart_init(UART_1, 115200, UART1_TX_B12, UART1_RX_B13);
-  // 控制串口
+  uart_init(DEBUG_UART, 115200, DEBUG_UART_TX, DEBUG_UART_RX);
+  // 控制串口 UART_6 B2 B3
   LPUART_DMA_Init(1);
   // uart_init(UART_6, 115200, UART6_TX_B2, UART6_RX_B3);
-  // 电机速度/方向
-  pwm_init(PWM1_MODULE3_CHA_B10, 17000, 5000);
-  gpio_init(B9, GPO, 0, GPO_PUSH_PULL);
+  // 电机速度
+  pwm_init(MOTOR_PWM, 17000, 0);
   // 舵机
-  pwm_init(PWM4_MODULE2_CHA_C30, 50, 1500);
+  pwm_init(SERVO_PWM, 100, PWMSERVOMID);
   // 编码器
-  encoder_quad_init(QTIMER4_ENCODER1, QTIMER4_ENCODER1_CH1_C9,
+  encoder_quad_init(ENCODER_CH, QTIMER4_ENCODER1_CH1_C9,
                     QTIMER4_ENCODER1_CH2_C10);
   // 电池采样adc
-  adc_init(ADC2_CH1_B28, ADC_8BIT);
+  adc_init(BAT_ADC, ADC_8BIT);
+  // PID定时器中断
+  pid.kp = 300.0;
+  pid.ki = 30.0;
+  pit_ms_init(PIT_CH0, PIT_PERIOD_MS);
+  // 电机方向
+  gpio_init(MOTOR_DIR, GPO, 0, GPO_PUSH_PULL);
   // 蜂鸣器
-  gpio_init(B29, GPO, 0, GPO_PUSH_PULL);
+  gpio_init(BUZZER_PIN, GPO, 0, GPO_PUSH_PULL);
   // 核心板led
-  gpio_init(B9, GPO, 1, GPO_PUSH_PULL);
+  gpio_init(LED_PIN, GPO, 1, GPO_PUSH_PULL);
+  // 按钮
+  gpio_init(BUTTON1, GPI, 0, GPI_PULL_UP);
+  gpio_init(BUTTON2, GPI, 0, GPI_PULL_UP);
+  gpio_init(BUTTON3, GPI, 0, GPI_PULL_UP);
+  gpio_init(BUTTON4, GPI, 0, GPI_PULL_UP);
 
-  buzzerQueue = xQueueCreate(4, sizeof(enum Buzzer));
-  uartQueue = xQueueCreate(8, sizeof(UartRecvFrame));
+  hBuzzerQueue = xQueueCreate(4, sizeof(enum Buzzer));
+  hUartQueue = xQueueCreate(8, sizeof(UartRecvFrame));
 
-  BaseType_t ret;
-  ret = xTaskCreate(hello_task, "Hello", configMINIMAL_STACK_SIZE + 100, NULL,
-                    configMAX_PRIORITIES - 1, NULL);
-  ret = xTaskCreate(tBuzzer, "BUZZER", 128, NULL, 4, NULL);
-  ret = xTaskCreate(tUartRecv, "CTRL", 128, NULL, 4, NULL);
-  if (ret != pdPASS) {
-    while (1) {
-      uart_write_string(UART_1, "[ERROR] Create Task Error\r\4");
-    }
+  if (hBuzzerQueue == NULL || hUartQueue == NULL) {
+#ifdef DEBUG
+    uart_write_string(UART_1, "Queue Creation failed!\r\n");
+    system_delay_ms(100);
+#endif // DEBUG
   }
 
+  xUartResetTimer = xTimerCreate("Uart Reset", pdMS_TO_TICKS(500), pdTRUE, NULL,
+                                 uartResetTimerCallback);
+  if (xUartResetTimer != NULL) {
+    xTimerStart(xUartResetTimer, 0);
+  }
+
+  BaseType_t ret;
+  ret = xTaskCreate(tMisc, "MISC", 256, NULL, 1, NULL);
+  ret = xTaskCreate(tBuzzer, "BUZZER", 128, NULL, 1, NULL);
+  ret = xTaskCreate(tUartRecv, "CTRL RX", 128, NULL, 4, NULL);
+  ret = xTaskCreate(tUartSend, "CTRL TX", 128, NULL, 3, &hUartSend);
+  if (ret != pdPASS) {
+    while (1) {
+#ifdef DEBUG
+      uart_write_string(UART_1, "Task Creation Error!\r\n");
+      system_delay_ms(100);
+#endif // DEBUG
+    }
+  }
   vTaskStartScheduler();
 }

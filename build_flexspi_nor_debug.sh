@@ -1,4 +1,6 @@
 #!/bin/bash
+export CLICOLOR_FORCE=1
+export GCC_COLORS=auto
 export ARMGCC_DIR=/home/naii/rt1064/toolchain/gcc-arm-none-eabi-10.3-2021.10/
 export SDK_DIR=/home/naii/rt1064/sdk
 cd build/
@@ -7,6 +9,6 @@ cd build/
 # if [ -f "cmake_install.cmake" ];then rm -f cmake_install.cmake; fi
 # if [ -f "CMakeCache.txt" ];then rm -f CMakeCache.txt; fi
 cmake -DSdkRootDirPath=${SDK_DIR} -DCMAKE_TOOLCHAIN_FILE=${SDK_DIR}"/tools/cmake_toolchain_files/armgcc.cmake" -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=flexspi_nor_debug  ..
-make -j 2>&1 | tee build_log.txt
+make -j
 cd -
 if [[ $# -gt 0 && $1 == "flash" ]];then pyocd flash --erase chip  --target mimxrt1064 flexspi_nor_debug/car.elf; fi

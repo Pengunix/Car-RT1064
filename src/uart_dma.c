@@ -24,7 +24,7 @@ void LPUART_DMA_Init(_Bool LPUART_DMA_Mode) {
     LPUART_GetDefaultConfig(&LpuartConfig);
 
     /* 在默认配置基础上继续配置参数 */
-    LpuartConfig.baudRate_Bps = 115200;
+    LpuartConfig.baudRate_Bps = 921600;
     LpuartConfig.enableTx = true;
     LpuartConfig.enableRx = true;
     LpuartConfig.rxIdleConfig = kLPUART_IdleCharacter2;
@@ -126,7 +126,7 @@ void LPUART_GPIO_Init(GPIO_Type *base_tx, uint32_t pin_tx, GPIO_Type *base_rx,
   );
 }
 
-extern QueueHandle_t uartQueue;
+extern QueueHandle_t hUartQueue;
 void UartCallbackDMA6(void) {
   /* 判断中断源 */
   if (LPUART_GetStatusFlags(DEMO_LPUART) & kLPUART_IdleLineFlag) {
@@ -139,10 +139,9 @@ void UartCallbackDMA6(void) {
     LPUART_TransferAbortReceiveEDMA(DEMO_LPUART, &g_lpuartEdmaHandle);
 
     /*数据处理-------------------------------------------------------------------------------------------------------*/
-    gpio_toggle_level(B9);
     BaseType_t yeildFromISR = pdFALSE;
     if (DMAU6.RxData_Index == 12) {
-      xQueueSendToBackFromISR(uartQueue, DMAU6.Rx_Buf.rxData, &yeildFromISR);
+      xQueueSendToBackFromISR(hUartQueue, DMAU6.Rx_Buf.rxData, &yeildFromISR);
     } else {
       memset(g_rxBuffer, 0, ECHO_BUFFER_LENGTH);
     }
