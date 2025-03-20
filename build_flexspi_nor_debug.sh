@@ -8,7 +8,7 @@ cd build/
 # if [ -f "Makefile" ];then rm -f Makefile; fi
 # if [ -f "cmake_install.cmake" ];then rm -f cmake_install.cmake; fi
 # if [ -f "CMakeCache.txt" ];then rm -f CMakeCache.txt; fi
-cmake -DSdkRootDirPath=${SDK_DIR} -DCMAKE_TOOLCHAIN_FILE=${SDK_DIR}"/tools/cmake_toolchain_files/armgcc.cmake" -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=flexspi_nor_debug  ..
-make -j
+cmake -DSdkRootDirPath=${SDK_DIR} -DCMAKE_TOOLCHAIN_FILE=${SDK_DIR}"/tools/cmake_toolchain_files/armgcc.cmake" -G Ninja -DCMAKE_BUILD_TYPE=flexspi_nor_debug  ..
+ninja
 cd -
-if [[ $# -gt 0 && $1 == "flash" ]];then pyocd flash --erase chip  --target mimxrt1064 flexspi_nor_debug/car.elf; fi
+if [[ $# -gt 0 && $1 == "flash" ]];then pyocd flash --target mimxrt1064 flexspi_nor_debug/car.elf; fi

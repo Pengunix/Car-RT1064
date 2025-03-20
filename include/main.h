@@ -10,9 +10,12 @@
 #define DEBUG_UART UART_1
 #define DEBUG_UART_TX UART1_TX_B12
 #define DEBUG_UART_RX UART1_RX_B13
-#define MOTOR_PWM PWM1_MODULE3_CHA_B10
-#define MOTOR_DIR B11
-#define SERVO_PWM PWM4_MODULE2_CHA_C30
+#define MOTOR_PWM PWM1_MODULE3_CHB_B11
+#define MOTOR_DIR C18
+#define MOTOR_FORWARD 1
+#define MOTOR_BACKWARD 0
+// #define SERVO_PWM PWM4_MODULE2_CHA_C30
+#define SERVO_PWM PWM4_MODULE2_CHA_C30 
 #define BAT_ADC ADC2_CH1_B28
 #define BUZZER_PIN B29
 #define LED_PIN B9
@@ -66,7 +69,7 @@ typedef union {
   struct {
     uint8 head;
     uint8 keys;
-    uint8 dis_achieced;
+    uint8 dis_achieved;
     uint8 _reserved;
     float speed;
     float roll;

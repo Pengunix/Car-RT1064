@@ -62,7 +62,7 @@ void LPUART_DMA_Init(_Bool LPUART_DMA_Mode) {
     LPUART_ClearStatusFlags(DEMO_LPUART, kLPUART_IdleLineFlag);
     LPUART_EnableInterrupts(DEMO_LPUART, kLPUART_IdleLineInterruptEnable);
     EnableIRQ(LPUART6_IRQn);
-    NVIC_SetPriority(LPUART6_IRQn, 6);
+    NVIC_SetPriority(LPUART6_IRQn, 5);
 
     /* 启动传输 */
     DMAU6.Rx_Buf.data = g_rxBuffer;
@@ -125,8 +125,13 @@ void LPUART_GPIO_Init(GPIO_Type *base_tx, uint32_t pin_tx, GPIO_Type *base_rx,
           IOMUXC_SW_PAD_CTL_PAD_HYS(0)       /* Hysteresis disabled */
   );
 }
-
-extern QueueHandle_t hUartQueue;
+extern uint8_t xorCheck(uint8_t *data, uint16_t size, uint8_t xorByte);
+extern TimerHandle_t xUartResetTimer;
+extern QueueHandle_t hBuzzerQueue;
+extern SPEED_PID pid;
+extern UartRecvFrame uartRecv;
+extern volatile uint8_t CarStart;
+extern volatile float exp_dis;
 void UartCallbackDMA6(void) {
   /* 判断中断源 */
   if (LPUART_GetStatusFlags(DEMO_LPUART) & kLPUART_IdleLineFlag) {
@@ -141,7 +146,28 @@ void UartCallbackDMA6(void) {
     /*数据处理-------------------------------------------------------------------------------------------------------*/
     BaseType_t yeildFromISR = pdFALSE;
     if (DMAU6.RxData_Index == 12) {
-      xQueueSendToBackFromISR(hUartQueue, DMAU6.Rx_Buf.rxData, &yeildFromISR);
+      if (g_rxBuffer[0] == UART_FRAME_HEAD &&
+          g_rxBuffer[11] == UART_FRAME_TAIL) {
+          gpio_toggle_level(LED_PIN);
+        if (g_rxBuffer[10] ==
+            xorCheck(g_rxBuffer, UART_RX_SIZE, g_rxBuffer[10])) {
+
+          memcpy(uartRecv.data, g_rxBuffer, sizeof(uartRecv));
+          // 设置速度
+          CarStart = 1;
+          pid.exp_speed = uartRecv.speed;
+          // 设置期望距离
+          exp_dis = uartRecv.dis / 100.0;
+          // 设置舵机
+          pwm_set_duty(SERVO_PWM, PWM_DUTY_MAX - uartRecv.servo);
+          // 蜂鸣器
+          if (uartRecv.buzzer != BUZZER_SLIENT) {
+            xQueueSendToBackFromISR(hBuzzerQueue, &uartRecv.buzzer,
+                                    &yeildFromISR);
+          }
+          xTimerResetFromISR(xUartResetTimer, 0);
+        }
+      }
     } else {
       memset(g_rxBuffer, 0, ECHO_BUFFER_LENGTH);
     }

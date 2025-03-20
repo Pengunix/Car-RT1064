@@ -13,7 +13,7 @@ if(CMAKE_SCRIPT_MODE_FILE)
     return()
 endif()
 
-project(iled_blinky)
+project(car)
 
 # ENABLE ASM
 enable_language(ASM)

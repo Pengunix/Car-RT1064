@@ -94,4 +94,5 @@ void pit_init (pit_index_enum pit_chn, uint32 period)
 	PIT_SetTimerChainMode(PIT, (pit_chnl_t)pit_chn, false);
     PIT_StartTimer(PIT, (pit_chnl_t)pit_chn);
     EnableIRQ(PIT_IRQn);
+    NVIC_SetPriority(PIT_IRQn, 6);
 }
