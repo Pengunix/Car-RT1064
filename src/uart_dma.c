@@ -24,7 +24,7 @@ void LPUART_DMA_Init(_Bool LPUART_DMA_Mode) {
     LPUART_GetDefaultConfig(&LpuartConfig);
 
     /* 在默认配置基础上继续配置参数 */
-    LpuartConfig.baudRate_Bps = 921600;
+    LpuartConfig.baudRate_Bps = 460800;
     LpuartConfig.enableTx = true;
     LpuartConfig.enableRx = true;
     LpuartConfig.rxIdleConfig = kLPUART_IdleCharacter2;
@@ -147,8 +147,8 @@ void UartCallbackDMA6(void) {
     BaseType_t yeildFromISR = pdFALSE;
     if (DMAU6.RxData_Index == 12) {
       if (g_rxBuffer[0] == UART_FRAME_HEAD &&
-          g_rxBuffer[11] == UART_FRAME_TAIL) {
-          gpio_toggle_level(LED_PIN);
+          g_rxBuffer[UART_RX_SIZE - 1] == UART_FRAME_TAIL) {
+    gpio_toggle_level(LED_PIN);
         if (g_rxBuffer[10] ==
             xorCheck(g_rxBuffer, UART_RX_SIZE, g_rxBuffer[10])) {
 

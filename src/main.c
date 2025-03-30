@@ -84,10 +84,10 @@ void PIDCalculate() {
   if (CarStart) {
     if (pid.output >= 0) {
       gpio_set_level(MOTOR_DIR, MOTOR_FORWARD);
-      pwm_set_duty(MOTOR_PWM, pid.output / 2);
+      pwm_set_duty(MOTOR_PWM, pid.output);
     } else {
       gpio_set_level(MOTOR_DIR, MOTOR_BACKWARD);
-      pwm_set_duty(MOTOR_PWM, -(pid.output/2));
+      pwm_set_duty(MOTOR_PWM, -(pid.output));
     }
   }
 }
@@ -103,10 +103,10 @@ static void tMisc(void *pv) {
 
     // gpio_toggle_level(LED_PIN);
     // xBatteryAdc = adc_convert(BAT_ADC);
-    if (xBatteryAdc <= BATTERYTHRESH) {
-      enum Buzzer action = BUZZER_WARNNING;
-      xQueueSendToBack(hBuzzerQueue, &action, 100);
-    }
+    // if (xBatteryAdc <= BATTERYTHRESH) {
+    //   enum Buzzer action = BUZZER_WARNNING;
+    //   xQueueSendToBack(hBuzzerQueue, &action, 100);
+    // }
     vTaskDelay(500 / portTICK_PERIOD_MS);
 
 #ifdef DEBUG
