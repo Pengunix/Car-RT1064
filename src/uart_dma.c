@@ -148,7 +148,7 @@ void UartCallbackDMA6(void) {
     if (DMAU6.RxData_Index == 12) {
       if (g_rxBuffer[0] == UART_FRAME_HEAD &&
           g_rxBuffer[UART_RX_SIZE - 1] == UART_FRAME_TAIL) {
-    gpio_toggle_level(LED_PIN);
+        gpio_toggle_level(LED_PIN);
         if (g_rxBuffer[10] ==
             xorCheck(g_rxBuffer, UART_RX_SIZE, g_rxBuffer[10])) {
 

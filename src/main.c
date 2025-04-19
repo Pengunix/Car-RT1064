@@ -51,6 +51,8 @@ void PIDCalculate() {
   }
   pid.encoder_num = en_sum / AVERAGECOUNT;
   pid.speed = sp_sum / AVERAGECOUNT;
+
+  uartTran.speed = pid.speed;
   pid.error = pid.exp_speed * PIT_PERIOD_S * ENCODER_OM - pid.encoder_num;
 
   static float P_out = 0;
@@ -76,9 +78,7 @@ void PIDCalculate() {
     count_dis += pid.speed * PIT_PERIOD_S;
     if (count_dis > exp_dis) {
       uartTran.dis_achieved = 1;
-    } else {
-      uartTran.dis_achieved = 0;
-    }
+    } 
   }
 
   if (CarStart) {
@@ -133,10 +133,13 @@ static void tUartSend(void *pv) {
   uartTran.head = 0x34;
   uartTran.tail = 0x43;
   for (;;) {
-    uartTran.speed = pid.speed;
-    for (int i = 0; i < UART_TX_SIZE; ++i) {
-      xorCheck(uartTran.data, UART_TX_SIZE, 0);
-      uart_write_byte(UART_6, uartTran.data[i]);
+    if (CarStart) {
+      uartTran.speed = pid.speed;
+      for (int i = 0; i < UART_TX_SIZE; ++i) {
+        uartTran.xorCheck = xorCheck(uartTran.data, UART_TX_SIZE, 0);
+        uart_write_byte(UART_6, uartTran.data[i]);
+        uartTran.dis_achieved = 0;
+      }
     }
     vTaskDelay(pdMS_TO_TICKS(10));
   }
@@ -156,55 +159,55 @@ static void tBuzzer(void *pv) {
       case BUZZER_OK:
         // 短一声
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
         break;
       case BUZZER_DING:
         // 长一声
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        vTaskDelay(80 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
         break;
       case BUZZER_WARNNING:
         // 短三声
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
         break;
       case BUZZER_FINISH:
         // 一长两短
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        vTaskDelay(80 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
         break;
       case BUZZER_START:
         // 两短一长
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 1);
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        vTaskDelay(80 / portTICK_PERIOD_MS);
         gpio_set_level(BUZZER_PIN, 0);
         break;
       default:
@@ -216,16 +219,15 @@ static void tBuzzer(void *pv) {
 
 int main(void) {
   clock_init(SYSTEM_CLOCK_600M);
-  // 调试串口
-  uart_init(DEBUG_UART, 115200, DEBUG_UART_TX, DEBUG_UART_RX);
-  // 控制串口 UART_6 B2 B3
-  LPUART_DMA_Init(1);
-  gpio_set_level(LED_PIN, 0);
-  // uart_init(UART_6, 115200, UART6_TX_B2, UART6_RX_B3);
   // 电机速度
   pwm_init(MOTOR_PWM, 17000, 0);
   // 舵机
   pwm_init(SERVO_PWM, 100, PWMSERVOMID);
+  // 调试串口
+  uart_init(DEBUG_UART, 115200, DEBUG_UART_TX, DEBUG_UART_RX);
+  // 控制串口 UART_6 B2 B3
+  LPUART_DMA_Init(1);
+  // uart_init(UART_6, 115200, UART6_TX_B2, UART6_RX_B3);
   // 编码器
   encoder_quad_init(ENCODER_CH, QTIMER4_ENCODER1_CH1_C9,
                     QTIMER4_ENCODER1_CH2_C10);
@@ -247,6 +249,7 @@ int main(void) {
   gpio_init(BUTTON4, GPI, 0, GPI_PULL_DOWN);
   // 核心板led
   gpio_init(LED_PIN, GPO, 0, GPO_PUSH_PULL);
+  gpio_set_level(LED_PIN, 0);
 
   hBuzzerQueue = xQueueCreate(4, sizeof(enum Buzzer));
 
@@ -277,5 +280,6 @@ int main(void) {
     }
   }
   vTaskStartScheduler();
-  for(;;) {}
+  for (;;) {
+  }
 }
