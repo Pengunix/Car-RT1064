@@ -151,7 +151,7 @@ void UartCallbackDMA6(void) {
         gpio_toggle_level(LED_PIN);
         if (g_rxBuffer[10] ==
             xorCheck(g_rxBuffer, UART_RX_SIZE, g_rxBuffer[10])) {
-
+          // TODO(me) 改为乒乓缓冲区减少cpu占用
           memcpy(uartRecv.data, g_rxBuffer, sizeof(uartRecv));
           // 设置速度
           CarStart = 1;

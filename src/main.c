@@ -147,6 +147,13 @@ static void tUartSend(void *pv) {
 
 static void uartResetTimerCallback() {
   pid.exp_speed = 0;
+  pid.error = 0;
+  pid.last_error = 0;
+  pid.output = 0;
+  pid.encoder_num = 0;
+  // CarStart = 0;
+  // encoder_clear_count(ENCODER_CH);
+  pwm_set_duty(MOTOR_PWM, 0);
   // TODO: 使用了OC电路，输出反相，改为与门换回来即可
   pwm_set_duty(SERVO_PWM, PWM_DUTY_MAX - PWMSERVOMID);
 }
