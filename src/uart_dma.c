@@ -159,7 +159,8 @@ void UartCallbackDMA6(void) {
           // 设置期望距离
           exp_dis = uartRecv.dis / 100.0;
           // 设置舵机
-          pwm_set_duty(SERVO_PWM, PWM_DUTY_MAX - uartRecv.servo);
+          // TODO(me): 舵机使用300hz 的频率时，对应的占空比也要乘3，但这样噪声也同样会放大，建议上位机改下
+          pwm_set_duty(SERVO_PWM, PWM_DUTY_MAX - (uartRecv.servo * 3));
           // 蜂鸣器
           if (uartRecv.buzzer != BUZZER_SLIENT) {
             xQueueSendToBackFromISR(hBuzzerQueue, &uartRecv.buzzer,

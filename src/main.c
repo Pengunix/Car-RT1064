@@ -155,7 +155,7 @@ static void uartResetTimerCallback() {
   // encoder_clear_count(ENCODER_CH);
   pwm_set_duty(MOTOR_PWM, 0);
   // TODO: 使用了OC电路，输出反相，改为与门换回来即可
-  pwm_set_duty(SERVO_PWM, PWM_DUTY_MAX - PWMSERVOMID);
+  pwm_set_duty(SERVO_PWM, PWM_DUTY_MAX - (PWMSERVOMID * 3));
 }
 
 static void tBuzzer(void *pv) {
@@ -229,7 +229,7 @@ int main(void) {
   // 电机速度
   pwm_init(MOTOR_PWM, 17000, 0);
   // 舵机
-  pwm_init(SERVO_PWM, 100, PWMSERVOMID);
+  pwm_init(SERVO_PWM, 300, PWM_DUTY_MAX - (PWMSERVOMID * 3));
   // 调试串口
   uart_init(DEBUG_UART, 115200, DEBUG_UART_TX, DEBUG_UART_RX);
   // 控制串口 UART_6 B2 B3
